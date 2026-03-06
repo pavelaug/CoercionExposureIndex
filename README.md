@@ -1,4 +1,4 @@
-# Coercion Exposure Index – Trade Network Lens (BACI HS02)
+# Coercion Exposure Index, Trade Network Lens (BACI HS02)
 
 This repo builds a **Coercion Exposure Index (CEI)** from raw **CEPII BACI HS02** trade data.
 
@@ -19,7 +19,7 @@ You can:
 
 ---
 
-## What you have right now
+## What we have right now
 
 - A Python package under `pipeline/` that:
   - loads BACI + code tables,
