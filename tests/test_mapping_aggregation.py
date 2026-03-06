@@ -28,9 +28,11 @@ def test_enrich_product_codes_assigns_hs2_and_sector():
     assert "sector_code" in enriched.columns
     assert "sector_name" in enriched.columns
 
-    # All rows should have non-null HS2 and sector.
-    assert enriched["hs2_chapter"].notna().all()
-    assert enriched["sector_code"].notna().all()
+    # Numeric HS6 rows should have non-null HS2 and sector. Some datasets include
+    # special non-numeric codes (e.g. '9999AA') which will have hs2_chapter=None.
+    numeric_mask = enriched["code"].astype("string").str.fullmatch(r"\d+").fillna(False)
+    assert enriched.loc[numeric_mask, "hs2_chapter"].notna().all()
+    assert enriched.loc[numeric_mask, "sector_code"].notna().all()
 
 
 def test_aggregate_flows_preserves_bilateral_totals():

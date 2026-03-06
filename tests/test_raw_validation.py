@@ -27,7 +27,8 @@ def test_product_codes_cover_all_baci_products():
     products = load_product_codes()
 
     baci_products = set(baci["k"].unique())
-    product_codes = set(products["code"].astype("int32").tolist())
+    product_codes_numeric = pd.to_numeric(products["code"], errors="coerce").dropna().astype("int32")
+    product_codes = set(product_codes_numeric.tolist())
 
     missing = baci_products - product_codes
     assert not missing, f"Missing product codes in mapping: {sorted(missing)[:10]}"

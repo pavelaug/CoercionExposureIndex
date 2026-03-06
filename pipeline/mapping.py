@@ -9,12 +9,17 @@ import pandas as pd
 from .config import SECTOR_NAMES, sector_for_hs2
 
 
-def hs6_to_hs2(hs6_code: int) -> int:
+def hs6_to_hs2(hs6_code: int | str) -> int | None:
     """
-    Convert an HS6 code (int like 80810 or 80810) to its HS2 chapter (1..99).
+    Convert an HS6 code (usually numeric) to its HS2 chapter (1..99).
+
+    Returns None for non-numeric special codes (e.g., '9999AA').
     """
     # HS codes are left-padded to 6 digits; integer division by 10_000 yields HS2.
-    return hs6_code // 10_000
+    hs6_str = str(hs6_code)
+    if not hs6_str.isdigit():
+        return None  # special/non-numeric code
+    return int(hs6_str) // 10_000
 
 
 def enrich_product_codes(product_df: pd.DataFrame) -> pd.DataFrame:
@@ -31,8 +36,8 @@ def enrich_product_codes(product_df: pd.DataFrame) -> pd.DataFrame:
       - sector_name (str)
     """
     df = product_df.copy()
-    df["hs2_chapter"] = df["code"].astype("int32").apply(hs6_to_hs2)
-    df["sector_code"] = df["hs2_chapter"].apply(sector_for_hs2)
+    df["hs2_chapter"] = df["code"].apply(hs6_to_hs2)
+    df["sector_code"] = df["hs2_chapter"].apply(lambda x: sector_for_hs2(int(x)) if pd.notna(x) else "other")
     df["sector_name"] = df["sector_code"].map(SECTOR_NAMES)
     return df
 

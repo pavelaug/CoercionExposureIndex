@@ -54,13 +54,14 @@ def load_product_codes(paths: Paths | None = None) -> pd.DataFrame:
     Load HS6 product codes file.
 
     Expected columns:
-      - code: HS6 numeric code
+      - code: HS6 code (usually numeric, but can include special alphanumeric
+        buckets like '9999AA' in some CEPII releases)
       - description: free-text description
     """
     if paths is None:
         paths = get_default_paths()
 
-    df = pd.read_csv(paths.raw_product_codes, dtype={"code": "int32", "description": "string"})
+    df = pd.read_csv(paths.raw_product_codes, dtype={"code": "string", "description": "string"})
     return df
 
 
@@ -91,7 +92,10 @@ def validate_raw_consistency(paths: Paths | None = None) -> Tuple[bool, dict]:
     issues["exporter_missing_count"] = len(exporter_missing)
     issues["importer_missing_count"] = len(importer_missing)
 
-    product_codes_set = set(products["code"].astype("int32").tolist())
+    # Some product code rows may be non-numeric (e.g., '9999AA'). BACI `k` is
+    # numeric HS6, so we only need the numeric subset here.
+    product_codes_numeric = pd.to_numeric(products["code"], errors="coerce").dropna().astype("int32")
+    product_codes_set = set(product_codes_numeric.tolist())
     product_missing = sorted(set(baci["k"].unique()) - product_codes_set)
     issues["product_missing_count"] = len(product_missing)
 
