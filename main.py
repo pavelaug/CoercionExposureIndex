@@ -98,33 +98,65 @@ def build_coercion_graph_for_sector(
     if not G:
         raise RuntimeError("Graph is empty after filtering; relax filters or min_score.")
 
-    pos = nx.spring_layout(G, seed=42)
+    # Layout: Kamada-Kawai tends to produce a more evenly spaced, readable graph.
+    pos = nx.kamada_kawai_layout(G, weight="weight")
 
-    plt.figure(figsize=(10, 8))
+    # Compute node strengths to scale node size and color.
+    out_strength = dict(G.out_degree(weight="weight"))
+    in_strength = dict(G.in_degree(weight="weight"))
+    total_strength = {n: out_strength.get(n, 0.0) + in_strength.get(n, 0.0) for n in G.nodes()}
 
-    # Draw nodes
-    nx.draw_networkx_nodes(G, pos, node_color="#1f77b4", node_size=500)
+    max_total = max(total_strength.values()) if total_strength else 1.0
+    max_out = max(out_strength.values()) if out_strength else 1.0
 
-    # Draw directed edges with width scaled by coercion score
+    node_sizes = [
+        300.0 + 1400.0 * (total_strength[n] / max_total if max_total > 0 else 0.0)
+        for n in G.nodes()
+    ]
+    node_colors = [
+        (out_strength.get(n, 0.0) / max_out if max_out > 0 else 0.0) for n in G.nodes()
+    ]
+
+    # Edge visual encoding: width and color scale with coercion score.
     weights = [G[u][v]["weight"] for u, v in G.edges()]
     max_w = max(weights) if weights else 1.0
-    widths = [1.0 + 4.0 * (w / max_w) for w in weights]
+    widths = [0.8 + 3.5 * ((w / max_w) ** 0.5) for w in weights]
 
+    plt.figure(figsize=(12, 9))
+
+    # Draw nodes: size ~ total strength, color ~ outgoing coercion
+    nodes = nx.draw_networkx_nodes(
+        G,
+        pos,
+        node_size=node_sizes,
+        node_color=node_colors,
+        cmap=plt.cm.OrRd,
+    )
+    plt.colorbar(nodes, label="Relative outgoing coercion")
+
+    # Draw directed edges with widths and colors based on coercion score
     nx.draw_networkx_edges(
         G,
         pos,
         arrowstyle="->",
-        arrowsize=12,
+        arrowsize=10,
         width=widths,
-        edge_color="#ff7f0e",
+        edge_color=weights,
+        edge_cmap=plt.cm.Blues,
+        edge_vmin=0.0,
+        edge_vmax=max_w,
+        alpha=0.8,
     )
 
-    # Draw labels
+    # Draw labels slightly larger for clarity
     nx.draw_networkx_labels(G, pos, font_size=9, font_color="black")
 
     plt.axis("off")
     title_focus = f" (focus {focus_iso3})" if focus_iso3 else ""
-    plt.title(f"Coercion exposure network – sector={sector_code}, year={year}{title_focus}")
+    plt.title(
+        f"Coercion exposure network – sector={sector_code}, year={year}{title_focus}\n"
+        "Node size = total coercion activity, node color = outgoing coercion, edge width/color = S→T coercion score"
+    )
 
     out_svg = PROJECT / f"coercion_network_{sector_code}_{year}.svg"
     plt.tight_layout()
